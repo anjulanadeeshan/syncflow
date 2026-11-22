@@ -1,0 +1,31 @@
+{
+  "name": "syncflow",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "postinstall": "npm run prisma:generate",
+    "dev": "concurrently --names web,api --prefix-colors cyan,magenta \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=@syncflow/web",
+    "dev:api": "npm run start:dev --workspace=@syncflow/api",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace=@syncflow/api",
+    "prisma:generate": "npm run prisma:generate --workspace=@syncflow/api",
+    "prisma:validate": "npm run prisma:validate --workspace=@syncflow/api",
+    "db:migrate": "npm run prisma:migrate --workspace=@syncflow/api",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}
