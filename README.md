@@ -1,6 +1,6 @@
 # SyncFlow
 
-SyncFlow is a multi-tenant project and task management SaaS application. The repository contains a Next.js web app, NestJS API, Prisma/PostgreSQL persistence, and the authentication and user-management foundation. Organization, project, and task features are not implemented yet.
+SyncFlow is a multi-tenant project and task management SaaS application. The repository contains a Next.js web app, NestJS API, Prisma/PostgreSQL persistence, authentication, and organization/invitation management. Project and task features are not implemented yet.
 
 ## Prerequisites
 
@@ -19,14 +19,14 @@ Copy-Item apps/web/.env.example apps/web/.env.local
 Copy-Item apps/api/.env.example apps/api/.env
 ```
 
-For anything beyond local development, replace both authentication secrets in `apps/api/.env` with different cryptographically random values of at least 32 characters.
+For anything beyond local development, replace all authentication and invitation secrets in `apps/api/.env` with different cryptographically random values of at least 32 characters.
 
 ## Start locally
 
-Start PostgreSQL and apply the committed migration:
+Start PostgreSQL and the local Mailpit email catcher, then apply the committed migrations:
 
 ```powershell
-npm run db:up
+npm run dev:services
 npm run db:migrate
 ```
 
@@ -41,7 +41,9 @@ Open these URLs:
 - Web application: <http://localhost:3000>
 - Registration: <http://localhost:3000/register>
 - Login: <http://localhost:3000/login>
+- Organizations: <http://localhost:3000/organizations>
 - API health: <http://localhost:3001/api/health>
+- Invitation emails: <http://localhost:8025>
 
 Run only one application when needed:
 
@@ -76,13 +78,15 @@ syncflow/
 |   |-- web/
 |   |   |-- src/app/              # App Router pages and layouts
 |   |   |-- src/components/auth/  # Responsive authentication UI
-|   |   `-- src/lib/auth/         # API client and authenticated state
+|   |   |-- src/components/organizations/ # Organization and invitation UI
+|   |   `-- src/lib/              # Auth and organization API/state clients
 |   `-- api/
 |       |-- prisma/               # Schema and versioned migrations
 |       |-- src/common/           # Shared HTTP error/cookie utilities
 |       |-- src/config/           # Validated environment configuration
 |       |-- src/infrastructure/   # Prisma database adapter/module
 |       |-- src/modules/auth/     # Authentication vertical slice
+|       |-- src/modules/organizations/ # Tenant membership and invitations
 |       |-- src/modules/health/   # Health endpoint
 |       `-- test/                 # Integration tests and test DB setup
 |-- docs/                         # Product and architecture documentation
@@ -100,7 +104,9 @@ syncflow/
 | `apps/api/.env` | `DATABASE_URL`, `DATABASE_URL_TEST` | Development and isolated integration-test databases |
 | `apps/api/.env` | `AUTH_ACCESS_SECRET`, `AUTH_REFRESH_SECRET` | Separate access signing and refresh HMAC secrets |
 | `apps/api/.env` | `ACCESS_TOKEN_TTL_MINUTES`, `SESSION_TTL_HOURS` | Session lifetime controls |
+| `apps/api/.env` | `INVITATION_TOKEN_SECRET`, `INVITATION_TTL_HOURS` | Invitation token hashing and expiry |
+| `apps/api/.env` | `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `WEB_URL` | Invitation delivery and acceptance link |
 | `apps/api/.env` | `COOKIE_DOMAIN` | Optional production cookie domain; blank means host-only |
 | `apps/web/.env.local` | `NEXT_PUBLIC_API_URL` | Browser-visible API base URL |
 
-Real environment files are ignored by Git. Commit only `.env.example` templates. See `docs/authentication.md` for the complete session, cookie, CSRF, and authorization strategy.
+Real environment files are ignored by Git. Commit only `.env.example` templates. See `docs/authentication.md` for session security and `docs/organization-management.md` for tenant and invitation policy.

@@ -1,54 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useOrganizations } from '@/lib/organizations/organization-context';
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, isLoading, logout } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && !user) router.replace('/login');
-  }, [isLoading, router, user]);
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    await logout();
-    router.replace('/login');
-  }
-
-  if (isLoading || !user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
-        <div role="status" className="flex items-center gap-3 text-sm">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-700 border-t-blue-400" />
-          Loading your session…
-        </div>
-      </main>
-    );
-  }
+  const { user } = useAuth();
+  const { organizations, selectedOrganization, isLoading, error } = useOrganizations();
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-900/70">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <span className="text-xl font-bold">Sync<span className="text-blue-400">Flow</span></span>
-          <button onClick={handleLogout} disabled={loggingOut} className="rounded-lg border border-slate-700 px-3.5 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 disabled:opacity-60">
-            {loggingOut ? 'Signing out…' : 'Sign out'}
-          </button>
+    <DashboardShell title={`Welcome${user ? `, ${user.name}` : ''}`} description="Choose a workspace and keep your team moving in the same direction.">
+      {isLoading ? (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">Loading organizations…</div>
+      ) : error ? (
+        <div role="alert" className="rounded-2xl border border-red-900/60 bg-red-950/40 p-6 text-red-300">{error}</div>
+      ) : organizations.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-10 text-center">
+          <h2 className="text-xl font-semibold text-white">Create your first organization</h2>
+          <p className="mt-2 text-slate-400">Organizations isolate members, invitations, projects, and work.</p>
+          <Link href="/organizations" className="mt-6 inline-flex rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Get started</Link>
         </div>
-      </header>
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="text-sm font-medium text-blue-400">Dashboard</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Welcome, {user.name}</h1>
-        <p className="mt-3 max-w-2xl text-slate-400">Your authenticated account is ready. Organizations, projects, and boards will be added in the next phases.</p>
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Signed in as</p>
-          <p className="mt-2 font-medium text-slate-100">{user.email}</p>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2">
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Current workspace</p>
+            <h2 className="mt-3 text-2xl font-semibold">{selectedOrganization?.name}</h2>
+            <p className="mt-2 text-sm text-slate-400">{selectedOrganization?.memberCount} members · {selectedOrganization?.role}</p>
+            {selectedOrganization ? <Link href={`/organizations/${selectedOrganization.id}`} className="mt-5 inline-flex text-sm font-semibold text-blue-400 hover:text-blue-300">Open organization →</Link> : null}
+          </section>
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Next module</p>
+            <h2 className="mt-3 text-xl font-semibold">Projects are not enabled yet</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Organization membership is ready. Project management remains intentionally deferred.</p>
+          </section>
         </div>
-      </section>
-    </main>
+      )}
+    </DashboardShell>
   );
 }

@@ -22,7 +22,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
   csrfProtected = false,
@@ -53,13 +53,13 @@ async function request<T>(
 
 export async function getCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken;
-  const response = await request<{ csrfToken: string }>('/auth/csrf');
+  const response = await apiRequest<{ csrfToken: string }>('/auth/csrf');
   csrfToken = response.csrfToken;
   return csrfToken;
 }
 
 export function getCurrentUser(): Promise<AuthResponse> {
-  return request('/auth/me');
+  return apiRequest('/auth/me');
 }
 
 export function register(input: {
@@ -67,23 +67,23 @@ export function register(input: {
   email: string;
   password: string;
 }): Promise<AuthResponse> {
-  return request('/auth/register', { method: 'POST', body: JSON.stringify(input) }, true);
+  return apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(input) }, true);
 }
 
 export function login(input: {
   email: string;
   password: string;
 }): Promise<AuthResponse> {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify(input) }, true);
+  return apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(input) }, true);
 }
 
 export function refreshSession(): Promise<AuthResponse> {
-  return request('/auth/refresh', { method: 'POST' }, true);
+  return apiRequest('/auth/refresh', { method: 'POST' }, true);
 }
 
 export async function logout(): Promise<void> {
   try {
-    await request('/auth/logout', { method: 'POST' }, true);
+    await apiRequest('/auth/logout', { method: 'POST' }, true);
   } finally {
     csrfToken = undefined;
   }

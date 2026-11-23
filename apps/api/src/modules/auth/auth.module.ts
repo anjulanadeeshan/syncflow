@@ -24,5 +24,6 @@ import { TokenService } from './token.service.js';
     SessionAuthGuard,
     { provide: APP_GUARD, useClass: CsrfGuard },
   ],
+  exports: [AuthService, SessionAuthGuard],
 })
 export class AuthModule {}

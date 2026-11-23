@@ -16,8 +16,15 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  function getDestination() {
+    const requested = new URLSearchParams(window.location.search).get('next');
+    return requested?.startsWith('/') && !requested.startsWith('//')
+      ? requested
+      : '/dashboard';
+  }
+
   useEffect(() => {
-    if (!isLoading && user) router.replace('/dashboard');
+    if (!isLoading && user) router.replace(getDestination());
   }, [isLoading, router, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -40,7 +47,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await register({ name: input.name, email: input.email, password: input.password });
-      router.replace('/dashboard');
+      router.replace(getDestination());
     } catch (caught) {
       if (caught instanceof ApiError) {
         setError(caught.details.length ? 'Please correct the highlighted fields.' : caught.message);
@@ -58,12 +65,12 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
-      description="Start a secure SyncFlow session. Your first workspace comes in a later phase."
+      description="Create your account, then set up or join an organization workspace."
       alternateText="Already have an account?"
       alternateHref="/login"
       alternateLabel="Sign in"
     >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form method="post" className="space-y-5" onSubmit={handleSubmit}>
         {error ? (
           <div role="alert" className="rounded-lg border border-red-900/60 bg-red-950/50 px-3.5 py-3 text-sm text-red-300">
             {error}

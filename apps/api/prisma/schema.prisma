@@ -13,15 +13,76 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique @db.VarChar(254)
-  name         String    @db.VarChar(80)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions     Session[]
+  id                          String               @id @default(uuid()) @db.Uuid
+  email                       String               @unique @db.VarChar(254)
+  name                        String               @db.VarChar(80)
+  passwordHash                String               @map("password_hash") @db.VarChar(255)
+  createdAt                   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions                    Session[]
+  organizationMemberships     OrganizationMember[]
+  sentOrganizationInvitations Invitation[]         @relation("InvitationInviter")
 
   @@map("users")
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+
+  @@map("organization_role")
+}
+
+model Organization {
+  id          String               @id @default(uuid()) @db.Uuid
+  name        String               @db.VarChar(100)
+  slug        String               @unique @db.VarChar(50)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships OrganizationMember[]
+  invitations Invitation[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           OrganizationRole @default(MEMBER)
+  joinedAt       DateTime         @default(now()) @map("joined_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+model Invitation {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  email          String           @db.VarChar(254)
+  role           OrganizationRole @default(MEMBER)
+  tokenHash      String           @unique @map("token_hash") @db.Char(64)
+  activeKey      String?          @unique @map("active_key") @db.VarChar(320)
+  invitedById    String           @map("invited_by_id") @db.Uuid
+  expiresAt      DateTime         @map("expires_at") @db.Timestamptz(3)
+  acceptedAt     DateTime?        @map("accepted_at") @db.Timestamptz(3)
+  rejectedAt     DateTime?        @map("rejected_at") @db.Timestamptz(3)
+  cancelledAt    DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  expiredAt      DateTime?        @map("expired_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User             @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("invitations")
 }
 
 model Session {

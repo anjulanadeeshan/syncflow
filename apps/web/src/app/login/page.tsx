@@ -13,8 +13,15 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  function getDestination() {
+    const requested = new URLSearchParams(window.location.search).get('next');
+    return requested?.startsWith('/') && !requested.startsWith('//')
+      ? requested
+      : '/dashboard';
+  }
+
   useEffect(() => {
-    if (!isLoading && user) router.replace('/dashboard');
+    if (!isLoading && user) router.replace(getDestination());
   }, [isLoading, router, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,7 +35,7 @@ export default function LoginPage() {
         email: String(form.get('email') ?? ''),
         password: String(form.get('password') ?? ''),
       });
-      router.replace('/dashboard');
+      router.replace(getDestination());
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -48,7 +55,7 @@ export default function LoginPage() {
       alternateHref="/register"
       alternateLabel="Create an account"
     >
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form method="post" className="space-y-5" onSubmit={handleSubmit}>
         {error ? (
           <div role="alert" className="rounded-lg border border-red-900/60 bg-red-950/50 px-3.5 py-3 text-sm text-red-300">
             {error}

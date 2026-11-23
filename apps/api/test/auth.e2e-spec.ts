@@ -21,6 +21,9 @@ describe('Authentication (e2e)', () => {
   });
 
   beforeEach(async () => {
+    await prisma.invitation.deleteMany();
+    await prisma.organizationMember.deleteMany();
+    await prisma.organization.deleteMany();
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
   });
