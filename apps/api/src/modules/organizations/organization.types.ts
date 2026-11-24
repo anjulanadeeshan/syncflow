@@ -1,5 +1,10 @@
-export const ORGANIZATION_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
-export type OrganizationRoleValue = (typeof ORGANIZATION_ROLES)[number];
+import {
+  ORGANIZATION_ROLES,
+  type OrganizationRole,
+} from '../authorization/permissions.js';
+
+export { ORGANIZATION_ROLES };
+export type OrganizationRoleValue = OrganizationRole;
 
 export type OrganizationSummary = {
   id: string;

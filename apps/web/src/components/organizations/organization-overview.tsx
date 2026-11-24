@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { OrganizationPermissionGate } from '@/components/authorization/permission-gate';
+import { ORGANIZATION_PERMISSIONS } from '@/lib/authorization/permissions';
 import { ApiError } from '@/lib/auth/api';
 import { getOrganization } from '@/lib/organizations/api';
 import { useOrganizations } from '@/lib/organizations/organization-context';
@@ -33,7 +35,7 @@ export function OrganizationOverview({ organizationId }: { organizationId: strin
   }, [organizationId, selectOrganization]);
 
   return (
-    <DashboardShell title={organization?.name ?? 'Organization'} description={organization ? `Workspace /${organization.slug}` : 'Loading workspace details…'} actions={organization ? <Link href={`/organizations/${organization.id}/settings`} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Manage organization</Link> : null}>
+    <DashboardShell title={organization?.name ?? 'Organization'} description={organization ? `Workspace /${organization.slug}` : 'Loading workspace details…'} actions={organization ? <OrganizationPermissionGate role={organization.role} permission={ORGANIZATION_PERMISSIONS.INVITE_MEMBERS} fallback={<Link href={`/organizations/${organization.id}/settings`} className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">View members</Link>}><Link href={`/organizations/${organization.id}/settings`} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Manage organization</Link></OrganizationPermissionGate> : null}>
       {loading ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-slate-400">Loading organization…</div>
       ) : error ? (

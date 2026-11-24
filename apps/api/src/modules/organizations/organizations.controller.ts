@@ -15,6 +15,9 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import type { PublicUser } from '../auth/auth.types.js';
+import { OrganizationPermissionGuard } from '../authorization/organization-permission.guard.js';
+import { ORGANIZATION_PERMISSIONS } from '../authorization/permissions.js';
+import { RequireOrganizationPermission } from '../authorization/require-organization-permission.decorator.js';
 import { CreateOrganizationDto } from './dto/create-organization.dto.js';
 import { InviteMemberDto } from './dto/invite-member.dto.js';
 import { PaginationDto } from './dto/pagination.dto.js';
@@ -23,7 +26,7 @@ import { UpdateOrganizationDto } from './dto/update-organization.dto.js';
 import { OrganizationsService } from './organizations.service.js';
 
 @Controller('organizations')
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionAuthGuard, OrganizationPermissionGuard)
 export class OrganizationsController {
   constructor(private readonly organizations: OrganizationsService) {}
 
@@ -41,6 +44,7 @@ export class OrganizationsController {
   }
 
   @Get(':organizationId')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.READ)
   getDetails(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -49,6 +53,7 @@ export class OrganizationsController {
   }
 
   @Patch(':organizationId')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.UPDATE_SETTINGS)
   update(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -58,6 +63,7 @@ export class OrganizationsController {
   }
 
   @Get(':organizationId/members')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.READ_MEMBERS)
   listMembers(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -67,6 +73,7 @@ export class OrganizationsController {
   }
 
   @Patch(':organizationId/members/:memberUserId')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.ASSIGN_ROLES)
   updateMemberRole(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -82,6 +89,7 @@ export class OrganizationsController {
   }
 
   @Delete(':organizationId/members/:memberUserId')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.REMOVE_MEMBERS)
   @HttpCode(HttpStatus.NO_CONTENT)
   removeMember(
     @CurrentUser() user: PublicUser,
@@ -96,6 +104,7 @@ export class OrganizationsController {
   }
 
   @Post(':organizationId/invitations')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.INVITE_MEMBERS)
   createInvitation(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -105,6 +114,7 @@ export class OrganizationsController {
   }
 
   @Get(':organizationId/invitations')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.READ_INVITATIONS)
   listInvitations(
     @CurrentUser() user: PublicUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
@@ -118,6 +128,7 @@ export class OrganizationsController {
   }
 
   @Delete(':organizationId/invitations/:invitationId')
+  @RequireOrganizationPermission(ORGANIZATION_PERMISSIONS.CANCEL_INVITATIONS)
   @HttpCode(HttpStatus.NO_CONTENT)
   cancelInvitation(
     @CurrentUser() user: PublicUser,

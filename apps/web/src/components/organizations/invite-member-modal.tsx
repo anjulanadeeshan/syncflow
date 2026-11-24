@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '@/lib/auth/api';
+import { canAssignOrganizationRole } from '@/lib/authorization/permissions';
 import { inviteMember } from '@/lib/organizations/api';
 import type { OrganizationRole } from '@/lib/organizations/types';
 
@@ -48,7 +49,7 @@ export function InviteMemberModal({
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           {error ? <div role="alert" className="rounded-lg bg-red-950/50 p-3 text-sm text-red-300">{error}</div> : null}
           <label className="block text-sm font-medium">Email address<input ref={emailInput} name="email" type="email" required maxLength={254} disabled={submitting} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500" /></label>
-          <label className="block text-sm font-medium">Role<select name="role" disabled={submitting} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500"><option value="MEMBER">Member</option>{actorRole === 'OWNER' ? <><option value="ADMIN">Admin</option><option value="OWNER">Owner</option></> : null}</select></label>
+          <label className="block text-sm font-medium">Role<select name="role" disabled={submitting} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500">{(['MEMBER', 'ADMIN', 'OWNER'] as const).filter((role) => canAssignOrganizationRole(actorRole, role)).map((role) => <option key={role} value={role}>{role.charAt(0) + role.slice(1).toLowerCase()}</option>)}</select></label>
           <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-medium hover:bg-slate-800">Cancel</button><button type="submit" disabled={submitting} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-60">{submitting ? 'Sending…' : 'Send invitation'}</button></div>
         </form>
       </section>

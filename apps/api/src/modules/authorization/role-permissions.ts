@@ -1,0 +1,40 @@
+import type {
+  OrganizationPermission,
+  OrganizationRole,
+  ProjectPermission,
+  ProjectRole,
+} from './permissions.js';
+import {
+  ORGANIZATION_PERMISSIONS,
+  PROJECT_PERMISSIONS,
+} from './permissions.js';
+
+export const ORGANIZATION_ROLE_PERMISSIONS: Readonly<
+  Record<OrganizationRole, ReadonlySet<OrganizationPermission>>
+> = {
+  OWNER: new Set(Object.values(ORGANIZATION_PERMISSIONS)),
+  ADMIN: new Set([
+    ORGANIZATION_PERMISSIONS.READ,
+    ORGANIZATION_PERMISSIONS.READ_MEMBERS,
+    ORGANIZATION_PERMISSIONS.INVITE_MEMBERS,
+    ORGANIZATION_PERMISSIONS.READ_INVITATIONS,
+    ORGANIZATION_PERMISSIONS.CANCEL_INVITATIONS,
+    ORGANIZATION_PERMISSIONS.REMOVE_MEMBERS,
+    ORGANIZATION_PERMISSIONS.CREATE_PROJECTS,
+  ]),
+  MEMBER: new Set([
+    ORGANIZATION_PERMISSIONS.READ,
+    ORGANIZATION_PERMISSIONS.READ_MEMBERS,
+  ]),
+};
+
+export const PROJECT_ROLE_PERMISSIONS: Readonly<
+  Record<ProjectRole, ReadonlySet<ProjectPermission>>
+> = {
+  PROJECT_MANAGER: new Set(Object.values(PROJECT_PERMISSIONS)),
+  MEMBER: new Set([
+    PROJECT_PERMISSIONS.READ,
+    PROJECT_PERMISSIONS.MANAGE_TASKS,
+    PROJECT_PERMISSIONS.COMMENT,
+  ]),
+};

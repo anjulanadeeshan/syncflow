@@ -22,6 +22,9 @@ model User {
   sessions                    Session[]
   organizationMemberships     OrganizationMember[]
   sentOrganizationInvitations Invitation[]         @relation("InvitationInviter")
+  createdProjects             Project[]            @relation("ProjectCreator")
+  createdTasks                Task[]               @relation("TaskCreator")
+  taskAssignments             TaskAssignee[]
 
   @@map("users")
 }
@@ -34,6 +37,30 @@ enum OrganizationRole {
   @@map("organization_role")
 }
 
+enum ProjectRole {
+  PROJECT_MANAGER
+  MEMBER
+
+  @@map("project_role")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("task_priority")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+
+  @@map("task_status")
+}
+
 model Organization {
   id          String               @id @default(uuid()) @db.Uuid
   name        String               @db.VarChar(100)
@@ -42,23 +69,152 @@ model Organization {
   updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
   memberships OrganizationMember[]
   invitations Invitation[]
+  projects    Project[]
 
   @@map("organizations")
 }
 
 model OrganizationMember {
-  organizationId String           @map("organization_id") @db.Uuid
-  userId         String           @map("user_id") @db.Uuid
-  role           OrganizationRole @default(MEMBER)
-  joinedAt       DateTime         @default(now()) @map("joined_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId     String           @map("organization_id") @db.Uuid
+  userId             String           @map("user_id") @db.Uuid
+  role               OrganizationRole @default(MEMBER)
+  joinedAt           DateTime         @default(now()) @map("joined_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organization       Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectMemberships ProjectMember[]
 
   @@id([organizationId, userId])
   @@index([userId])
   @@index([organizationId, role])
   @@map("organization_members")
+}
+
+model Project {
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  name            String           @db.VarChar(120)
+  key             String           @db.VarChar(10)
+  description     String?          @db.Text
+  createdById     String           @map("created_by_id") @db.Uuid
+  archivedAt      DateTime?        @map("archived_at") @db.Timestamptz(3)
+  nextTaskNumber  Int              @default(1) @map("next_task_number")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy       User             @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  memberships     ProjectMember[]
+  workflowColumns WorkflowColumn[]
+  tasks           Task[]
+
+  @@unique([organizationId, key])
+  @@unique([id, organizationId])
+  @@index([organizationId, archivedAt, updatedAt])
+  @@index([createdById])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId              String             @map("project_id") @db.Uuid
+  organizationId         String             @map("organization_id") @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  role                   ProjectRole        @default(MEMBER)
+  joinedAt               DateTime           @default(now()) @map("joined_at") @db.Timestamptz(3)
+  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  project                Project            @relation(fields: [projectId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  organizationMembership OrganizationMember @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+  taskAssignments        TaskAssignee[]
+
+  @@id([projectId, userId])
+  @@index([organizationId, userId])
+  @@index([projectId, role])
+  @@map("project_members")
+}
+
+model WorkflowColumn {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  projectId      String    @map("project_id") @db.Uuid
+  name           String    @db.VarChar(80)
+  rank           Int
+  color          String?   @db.VarChar(20)
+  archivedAt     DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  project        Project   @relation(fields: [projectId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  tasks          Task[]
+
+  @@unique([projectId, rank])
+  @@unique([id, projectId, organizationId])
+  @@index([organizationId, projectId, archivedAt])
+  @@map("workflow_columns")
+}
+
+model Task {
+  id               String          @id @default(uuid()) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  projectId        String          @map("project_id") @db.Uuid
+  number           Int
+  workflowColumnId String?         @map("workflow_column_id") @db.Uuid
+  title            String          @db.VarChar(200)
+  description      String?         @db.Text
+  priority         TaskPriority    @default(MEDIUM)
+  status           TaskStatus      @default(TODO)
+  createdById      String          @map("created_by_id") @db.Uuid
+  dueDate          DateTime?       @map("due_date") @db.Timestamptz(3)
+  archivedAt       DateTime?       @map("archived_at") @db.Timestamptz(3)
+  version          Int             @default(1)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  project          Project         @relation(fields: [projectId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  workflowColumn   WorkflowColumn? @relation(fields: [workflowColumnId, projectId, organizationId], references: [id, projectId, organizationId], onDelete: Restrict)
+  createdBy        User            @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignees        TaskAssignee[]
+  subtasks         Subtask[]
+
+  @@unique([projectId, number])
+  @@unique([id, projectId, organizationId])
+  @@index([organizationId, projectId, archivedAt, updatedAt])
+  @@index([projectId, status, archivedAt])
+  @@index([projectId, priority, archivedAt])
+  @@index([projectId, dueDate])
+  @@index([workflowColumnId])
+  @@index([createdById])
+  @@map("tasks")
+}
+
+model TaskAssignee {
+  taskId         String        @map("task_id") @db.Uuid
+  projectId      String        @map("project_id") @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  assignedAt     DateTime      @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  task           Task          @relation(fields: [taskId, projectId, organizationId], references: [id, projectId, organizationId], onDelete: Cascade)
+  projectMember  ProjectMember @relation(fields: [projectId, userId], references: [projectId, userId], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([projectId, userId])
+  @@index([organizationId, projectId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+model Subtask {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  title          String   @db.VarChar(200)
+  isCompleted    Boolean  @default(false) @map("is_completed")
+  position       Int
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  task           Task     @relation(fields: [taskId, projectId, organizationId], references: [id, projectId, organizationId], onDelete: Cascade)
+
+  @@unique([taskId, position])
+  @@index([organizationId, projectId, taskId, isCompleted])
+  @@map("subtasks")
 }
 
 model Invitation {

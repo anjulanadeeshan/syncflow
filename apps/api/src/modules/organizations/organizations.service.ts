@@ -10,6 +10,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import {
+  ORGANIZATION_PERMISSIONS,
+} from '../authorization/permissions.js';
+import { PermissionService } from '../authorization/permission.service.js';
 import type { PublicUser } from '../auth/auth.types.js';
 import type { CreateOrganizationDto } from './dto/create-organization.dto.js';
 import type { InviteMemberDto } from './dto/invite-member.dto.js';
@@ -45,6 +49,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly policy: OrganizationPolicyService,
+    private readonly permissions: PermissionService,
     private readonly invitationTokens: InvitationTokenService,
     private readonly invitationMailer: InvitationMailerService,
     configService: ConfigService,
@@ -152,12 +157,10 @@ export class OrganizationsService {
             where: { organizationId_userId: { organizationId, userId } },
           });
           if (!actor) this.throwOrganizationNotFound();
-          if (actor.role !== 'OWNER') {
-            throw new ForbiddenException({
-              code: 'ORGANIZATION_OWNER_REQUIRED',
-              message: 'Organization owner permission is required.',
-            });
-          }
+          this.permissions.requireOrganizationPermission(
+            actor.role,
+            ORGANIZATION_PERMISSIONS.UPDATE_SETTINGS,
+          );
           return transaction.organization.update({
             where: { id: organizationId },
             data: {
@@ -226,12 +229,10 @@ export class OrganizationsService {
             },
           });
           if (!actor) this.throwOrganizationNotFound();
-          if (actor.role !== 'OWNER') {
-            throw new ForbiddenException({
-              code: 'ORGANIZATION_OWNER_REQUIRED',
-              message: 'Organization owner permission is required.',
-            });
-          }
+          this.permissions.requireOrganizationPermission(
+            actor.role,
+            ORGANIZATION_PERMISSIONS.ASSIGN_ROLES,
+          );
           const target = await transaction.organizationMember.findUnique({
             where: {
               organizationId_userId: { organizationId, userId: targetUserId },
@@ -274,19 +275,22 @@ export class OrganizationsService {
             },
           });
           if (!actor) this.throwOrganizationNotFound();
-          if (actor.role === 'MEMBER') {
-            throw new ForbiddenException({
-              code: 'ORGANIZATION_PERMISSION_DENIED',
-              message: 'Organization management permission is required.',
-            });
-          }
+          this.permissions.requireOrganizationPermission(
+            actor.role,
+            ORGANIZATION_PERMISSIONS.REMOVE_MEMBERS,
+          );
           const target = await transaction.organizationMember.findUnique({
             where: {
               organizationId_userId: { organizationId, userId: targetUserId },
             },
           });
           if (!target) this.throwMemberNotFound();
-          if (actor.role === 'ADMIN' && target.role !== 'MEMBER') {
+          if (
+            !this.permissions.canRemoveOrganizationRole(
+              actor.role,
+              target.role,
+            )
+          ) {
             throw new ForbiddenException({
               code: 'ORGANIZATION_PERMISSION_DENIED',
               message: 'Administrators can only remove members.',
@@ -334,13 +338,16 @@ export class OrganizationsService {
               },
             });
           if (!actorMembership) this.throwOrganizationNotFound();
-          if (actorMembership.role === 'MEMBER') {
-            throw new ForbiddenException({
-              code: 'ORGANIZATION_PERMISSION_DENIED',
-              message: 'Organization management permission is required.',
-            });
-          }
-          if (actorMembership.role === 'ADMIN' && input.role !== 'MEMBER') {
+          this.permissions.requireOrganizationPermission(
+            actorMembership.role,
+            ORGANIZATION_PERMISSIONS.INVITE_MEMBERS,
+          );
+          if (
+            !this.permissions.canAssignOrganizationRole(
+              actorMembership.role,
+              input.role,
+            )
+          ) {
             throw new ForbiddenException({
               code: 'INVITATION_ROLE_NOT_ALLOWED',
               message: 'Administrators can only invite organization members.',
@@ -470,17 +477,20 @@ export class OrganizationsService {
         },
       });
       if (!actor) this.throwOrganizationNotFound();
-      if (actor.role === 'MEMBER') {
-        throw new ForbiddenException({
-          code: 'ORGANIZATION_PERMISSION_DENIED',
-          message: 'Organization management permission is required.',
-        });
-      }
+      this.permissions.requireOrganizationPermission(
+        actor.role,
+        ORGANIZATION_PERMISSIONS.CANCEL_INVITATIONS,
+      );
       const invitation = await transaction.invitation.findFirst({
         where: { id: invitationId, organizationId },
       });
       if (!invitation) this.throwInvitationNotFound();
-      if (actor.role === 'ADMIN' && invitation.role !== 'MEMBER') {
+      if (
+        !this.permissions.canAssignOrganizationRole(
+          actor.role,
+          invitation.role,
+        )
+      ) {
         throw new ForbiddenException({
           code: 'ORGANIZATION_PERMISSION_DENIED',
           message: 'Administrators can only manage member invitations.',

@@ -1,56 +1,44 @@
 import {
-  ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import type { OrganizationMember } from '../../generated/prisma/client.js';
-import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { OrganizationAccessService } from '../authorization/organization-access.service.js';
+import { ORGANIZATION_PERMISSIONS } from '../authorization/permissions.js';
 
 @Injectable()
 export class OrganizationPolicyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly access: OrganizationAccessService) {}
 
   async requireMember(
     userId: string,
     organizationId: string,
   ): Promise<OrganizationMember> {
-    const membership = await this.prisma.organizationMember.findUnique({
-      where: { organizationId_userId: { organizationId, userId } },
-    });
-    if (!membership) {
-      throw new NotFoundException({
-        code: 'ORGANIZATION_NOT_FOUND',
-        message: 'Organization not found.',
-      });
-    }
-    return membership;
+    return this.access.requireMembership(
+      userId,
+      organizationId,
+      ORGANIZATION_PERMISSIONS.READ,
+    );
   }
 
   async requireManager(
     userId: string,
     organizationId: string,
   ): Promise<OrganizationMember> {
-    const membership = await this.requireMember(userId, organizationId);
-    if (membership.role === 'MEMBER') {
-      throw new ForbiddenException({
-        code: 'ORGANIZATION_PERMISSION_DENIED',
-        message: 'Organization management permission is required.',
-      });
-    }
-    return membership;
+    return this.access.requireMembership(
+      userId,
+      organizationId,
+      ORGANIZATION_PERMISSIONS.READ_INVITATIONS,
+    );
   }
 
   async requireOwner(
     userId: string,
     organizationId: string,
   ): Promise<OrganizationMember> {
-    const membership = await this.requireMember(userId, organizationId);
-    if (membership.role !== 'OWNER') {
-      throw new ForbiddenException({
-        code: 'ORGANIZATION_OWNER_REQUIRED',
-        message: 'Organization owner permission is required.',
-      });
-    }
-    return membership;
+    return this.access.requireMembership(
+      userId,
+      organizationId,
+      ORGANIZATION_PERMISSIONS.UPDATE_SETTINGS,
+    );
   }
 }

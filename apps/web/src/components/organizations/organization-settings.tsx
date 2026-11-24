@@ -2,8 +2,16 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { AccessDenied } from '@/components/authorization/access-denied';
+import { OrganizationPermissionGate } from '@/components/authorization/permission-gate';
 import { InviteMemberModal } from './invite-member-modal';
 import { ApiError } from '@/lib/auth/api';
+import {
+  canAssignOrganizationRole,
+  canRemoveOrganizationRole,
+  hasOrganizationPermission,
+  ORGANIZATION_PERMISSIONS,
+} from '@/lib/authorization/permissions';
 import {
   cancelInvitation,
   getOrganization,
@@ -27,6 +35,7 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -34,6 +43,7 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    setAccessDenied(false);
     try {
       const [details, memberResponse] = await Promise.all([
         getOrganization(organizationId),
@@ -41,14 +51,18 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
       ]);
       setOrganization(details.organization);
       setMembers(memberResponse.members);
-      if (details.organization.role !== 'MEMBER') {
+      if (hasOrganizationPermission(details.organization.role, ORGANIZATION_PERMISSIONS.READ_INVITATIONS)) {
         const invitationResponse = await listInvitations(organizationId);
         setInvitations(invitationResponse.invitations);
       } else {
         setInvitations([]);
       }
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Unable to load organization settings.');
+      if (caught instanceof ApiError && caught.status === 403) {
+        setAccessDenied(true);
+      } else {
+        setError(caught instanceof ApiError ? caught.message : 'Unable to load organization settings.');
+      }
     } finally {
       setLoading(false);
     }
@@ -109,13 +123,32 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
     }
   }
 
-  const canManage = organization?.role === 'OWNER' || organization?.role === 'ADMIN';
+  const canInvite = hasOrganizationPermission(
+    organization?.role,
+    ORGANIZATION_PERMISSIONS.INVITE_MEMBERS,
+  );
+  const canUpdateSettings = hasOrganizationPermission(
+    organization?.role,
+    ORGANIZATION_PERMISSIONS.UPDATE_SETTINGS,
+  );
+  const canAssignRoles = hasOrganizationPermission(
+    organization?.role,
+    ORGANIZATION_PERMISSIONS.ASSIGN_ROLES,
+  );
+
+  if (accessDenied) {
+    return (
+      <DashboardShell title="Access denied" description="Organization permission required.">
+        <AccessDenied message="Your current organization role does not allow this action." />
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell
       title={organization ? `${organization.name} settings` : 'Organization settings'}
       description="Manage workspace identity, members, roles, and invitations."
-      actions={canManage ? <button type="button" onClick={() => setInviteOpen(true)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Invite member</button> : null}
+      actions={<OrganizationPermissionGate role={organization?.role} permission={ORGANIZATION_PERMISSIONS.INVITE_MEMBERS}><button type="button" onClick={() => setInviteOpen(true)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Invite member</button></OrganizationPermissionGate>}
     >
       {error ? <div role="alert" className="mb-6 rounded-xl border border-red-900/60 bg-red-950/40 p-4 text-red-300">{error}</div> : null}
       {notice ? <div role="status" className="mb-6 rounded-xl border border-emerald-900/60 bg-emerald-950/40 p-4 text-emerald-300">{notice}</div> : null}
@@ -126,9 +159,9 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
           <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
             <div className="mb-5"><h2 className="text-xl font-semibold">Workspace details</h2><p className="mt-1 text-sm text-slate-400">Only owners can change these settings.</p></div>
             <form key={organization.updatedAt} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={handleSettings}>
-              <label className="block text-sm font-medium">Name<input name="name" defaultValue={organization.name} required minLength={2} maxLength={100} disabled={organization.role !== 'OWNER'} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 disabled:opacity-60" /></label>
-              <label className="block text-sm font-medium">Slug<input name="slug" defaultValue={organization.slug} required minLength={3} maxLength={50} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" disabled={organization.role !== 'OWNER'} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 disabled:opacity-60" /></label>
-              {organization.role === 'OWNER' ? <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Save</button> : null}
+              <label className="block text-sm font-medium">Name<input name="name" defaultValue={organization.name} required minLength={2} maxLength={100} disabled={!canUpdateSettings} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 disabled:opacity-60" /></label>
+              <label className="block text-sm font-medium">Slug<input name="slug" defaultValue={organization.slug} required minLength={3} maxLength={50} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" disabled={!canUpdateSettings} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 disabled:opacity-60" /></label>
+              {canUpdateSettings ? <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500">Save</button> : null}
             </form>
           </section>
 
@@ -136,17 +169,17 @@ export function OrganizationSettings({ organizationId }: { organizationId: strin
             <div className="border-b border-slate-800 p-6"><h2 className="text-xl font-semibold">Members</h2><p className="mt-1 text-sm text-slate-400">{members.length} active organization members.</p></div>
             {members.length === 0 ? <p className="p-6 text-slate-400">No members found.</p> : (
               <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-6 py-3">Member</th><th className="px-6 py-3">Role</th><th className="px-6 py-3">Joined</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-800">{members.map((member) => {
-                const canRemove = organization.role === 'OWNER' || (organization.role === 'ADMIN' && member.role === 'MEMBER');
-                return <tr key={member.user.id}><td className="px-6 py-4"><p className="font-medium text-white">{member.user.name}</p><p className="text-slate-500">{member.user.email}</p></td><td className="px-6 py-4">{organization.role === 'OWNER' ? <select aria-label={`Role for ${member.user.name}`} value={member.role} onChange={(event) => void handleRoleChange(member.user.id, event.target.value as OrganizationRole)} className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2"><option value="OWNER">Owner</option><option value="ADMIN">Admin</option><option value="MEMBER">Member</option></select> : member.role}</td><td className="px-6 py-4 text-slate-400">{new Date(member.joinedAt).toLocaleDateString()}</td><td className="px-6 py-4 text-right">{canRemove ? <button type="button" onClick={() => void handleRemove(member)} className="text-red-400 hover:text-red-300">Remove</button> : <span className="text-slate-600">—</span>}</td></tr>;
+                const canRemove = canRemoveOrganizationRole(organization.role, member.role);
+                return <tr key={member.user.id}><td className="px-6 py-4"><p className="font-medium text-white">{member.user.name}</p><p className="text-slate-500">{member.user.email}</p></td><td className="px-6 py-4">{canAssignRoles ? <select aria-label={`Role for ${member.user.name}`} value={member.role} onChange={(event) => void handleRoleChange(member.user.id, event.target.value as OrganizationRole)} className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2"><option value="OWNER">Owner</option><option value="ADMIN">Admin</option><option value="MEMBER">Member</option></select> : member.role}</td><td className="px-6 py-4 text-slate-400">{new Date(member.joinedAt).toLocaleDateString()}</td><td className="px-6 py-4 text-right">{canRemove ? <button type="button" onClick={() => void handleRemove(member)} className="text-red-400 hover:text-red-300">Remove</button> : <span className="text-slate-600">—</span>}</td></tr>;
               })}</tbody></table></div>
             )}
           </section>
 
-          {canManage ? (
+          {canInvite ? (
             <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
               <div className="border-b border-slate-800 p-6"><h2 className="text-xl font-semibold">Invitations</h2><p className="mt-1 text-sm text-slate-400">Invitation links expire and can only be used once.</p></div>
               {invitations.length === 0 ? <p className="p-6 text-slate-400">No invitations have been sent.</p> : (
-                <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-6 py-3">Email</th><th className="px-6 py-3">Role</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Expires</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-800">{invitations.map((invitation) => <tr key={invitation.id}><td className="px-6 py-4"><p className="font-medium text-white">{invitation.email}</p><p className="text-slate-500">by {invitation.invitedBy.name}</p></td><td className="px-6 py-4">{invitation.role}</td><td className="px-6 py-4"><span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold">{invitation.status}</span></td><td className="px-6 py-4 text-slate-400">{new Date(invitation.expiresAt).toLocaleDateString()}</td><td className="px-6 py-4 text-right">{invitation.status === 'PENDING' ? <button type="button" onClick={() => void handleCancel(invitation)} className="text-red-400 hover:text-red-300">Cancel</button> : <span className="text-slate-600">—</span>}</td></tr>)}</tbody></table></div>
+                <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-6 py-3">Email</th><th className="px-6 py-3">Role</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Expires</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-800">{invitations.map((invitation) => <tr key={invitation.id}><td className="px-6 py-4"><p className="font-medium text-white">{invitation.email}</p><p className="text-slate-500">by {invitation.invitedBy.name}</p></td><td className="px-6 py-4">{invitation.role}</td><td className="px-6 py-4"><span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold">{invitation.status}</span></td><td className="px-6 py-4 text-slate-400">{new Date(invitation.expiresAt).toLocaleDateString()}</td><td className="px-6 py-4 text-right">{invitation.status === 'PENDING' && canAssignOrganizationRole(organization.role, invitation.role) ? <button type="button" onClick={() => void handleCancel(invitation)} className="text-red-400 hover:text-red-300">Cancel</button> : <span className="text-slate-600">—</span>}</td></tr>)}</tbody></table></div>
               )}
             </section>
           ) : null}
