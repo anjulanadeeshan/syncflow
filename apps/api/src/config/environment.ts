@@ -13,6 +13,20 @@ export function validateEnvironment(config: Environment): Environment {
   const sessionTtlHours = Number(config.SESSION_TTL_HOURS ?? 168);
   const invitationTtlHours = Number(config.INVITATION_TTL_HOURS ?? 168);
   const smtpPort = Number(config.SMTP_PORT ?? 1025);
+  const databaseTransactionMaxWaitMs = Number(
+    config.DATABASE_TRANSACTION_MAX_WAIT_MS ?? 15_000,
+  );
+  const databaseTransactionTimeoutMs = Number(
+    config.DATABASE_TRANSACTION_TIMEOUT_MS ?? 15_000,
+  );
+  const databaseUseLibpqSslCompat =
+    config.DATABASE_USE_LIBPQ_SSL_COMPAT === true ||
+    config.DATABASE_USE_LIBPQ_SSL_COMPAT === 'true';
+  const configuredMailProvider = config.MAIL_PROVIDER ?? 'smtp';
+  if (typeof configuredMailProvider !== 'string') {
+    throw new Error('MAIL_PROVIDER must be either smtp or brevo.');
+  }
+  const mailProvider = configuredMailProvider.toLowerCase();
 
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error('PORT must be an integer between 1 and 65535.');
@@ -32,6 +46,28 @@ export function validateEnvironment(config: Environment): Environment {
 
   if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65_535) {
     throw new Error('SMTP_PORT must be an integer between 1 and 65535.');
+  }
+
+  if (!['smtp', 'brevo'].includes(mailProvider)) {
+    throw new Error('MAIL_PROVIDER must be either smtp or brevo.');
+  }
+
+  if (
+    !Number.isInteger(databaseTransactionMaxWaitMs) ||
+    databaseTransactionMaxWaitMs < 1
+  ) {
+    throw new Error(
+      'DATABASE_TRANSACTION_MAX_WAIT_MS must be a positive integer.',
+    );
+  }
+
+  if (
+    !Number.isInteger(databaseTransactionTimeoutMs) ||
+    databaseTransactionTimeoutMs < 1
+  ) {
+    throw new Error(
+      'DATABASE_TRANSACTION_TIMEOUT_MS must be a positive integer.',
+    );
   }
 
   const databaseUrl =
@@ -76,13 +112,26 @@ export function validateEnvironment(config: Environment): Environment {
     throw new Error('Security secrets must be different.');
   }
 
+  if (config.NODE_ENV === 'production' && !config.WEB_URL) {
+    throw new Error('WEB_URL is required in production.');
+  }
+
   if (
-    config.NODE_ENV === 'production' &&
-    (!config.SMTP_HOST || !config.MAIL_FROM || !config.WEB_URL)
+    config.NODE_ENV !== 'test' &&
+    mailProvider === 'brevo' &&
+    (!config.BREVO_API_KEY || !config.MAIL_FROM_EMAIL)
   ) {
     throw new Error(
-      'SMTP_HOST, MAIL_FROM, and WEB_URL are required in production.',
+      'BREVO_API_KEY and MAIL_FROM_EMAIL are required when MAIL_PROVIDER is brevo.',
     );
+  }
+
+  if (
+    config.NODE_ENV === 'production' &&
+    mailProvider === 'smtp' &&
+    (!config.SMTP_HOST || !config.MAIL_FROM)
+  ) {
+    throw new Error('SMTP_HOST and MAIL_FROM are required for SMTP delivery.');
   }
 
   return {
@@ -90,6 +139,9 @@ export function validateEnvironment(config: Environment): Environment {
     PORT: port,
     CORS_ORIGIN: config.CORS_ORIGIN ?? 'http://localhost:3000',
     DATABASE_URL: databaseUrl ?? DEFAULT_DATABASE_URL,
+    DATABASE_USE_LIBPQ_SSL_COMPAT: databaseUseLibpqSslCompat,
+    DATABASE_TRANSACTION_MAX_WAIT_MS: databaseTransactionMaxWaitMs,
+    DATABASE_TRANSACTION_TIMEOUT_MS: databaseTransactionTimeoutMs,
     AUTH_ACCESS_SECRET: accessSecret,
     AUTH_REFRESH_SECRET: refreshSecret,
     ACCESS_TOKEN_TTL_MINUTES: accessTokenTtlMinutes,
@@ -97,9 +149,13 @@ export function validateEnvironment(config: Environment): Environment {
     INVITATION_TOKEN_SECRET: invitationSecret,
     INVITATION_TTL_HOURS: invitationTtlHours,
     WEB_URL: config.WEB_URL ?? 'http://localhost:3000',
+    MAIL_PROVIDER: mailProvider,
     SMTP_HOST: config.SMTP_HOST ?? 'localhost',
     SMTP_PORT: smtpPort,
     MAIL_FROM: config.MAIL_FROM ?? 'SyncFlow <no-reply@syncflow.local>',
+    MAIL_FROM_EMAIL: config.MAIL_FROM_EMAIL ?? 'no-reply@syncflow.local',
+    MAIL_FROM_NAME: config.MAIL_FROM_NAME ?? 'SyncFlow',
+    BREVO_API_KEY: config.BREVO_API_KEY || undefined,
     COOKIE_DOMAIN: config.COOKIE_DOMAIN || undefined,
   };
 }

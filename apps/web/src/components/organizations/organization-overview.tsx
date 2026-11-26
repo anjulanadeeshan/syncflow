@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/auth/api';
 import { getOrganization } from '@/lib/organizations/api';
 import { useOrganizations } from '@/lib/organizations/organization-context';
 import type { OrganizationDetails } from '@/lib/organizations/types';
+import { ProjectList } from '@/components/projects/project-list';
 
 export function OrganizationOverview({ organizationId }: { organizationId: string }) {
   const { selectOrganization } = useOrganizations();
@@ -41,10 +42,16 @@ export function OrganizationOverview({ organizationId }: { organizationId: strin
       ) : error ? (
         <div role="alert" className="rounded-2xl border border-red-900/60 bg-red-950/40 p-6 text-red-300">{error}</div>
       ) : organization ? (
-        <div className="grid gap-5 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Your role</p><p className="mt-2 text-xl font-semibold">{organization.role}</p></div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Members</p><p className="mt-2 text-xl font-semibold">{organization.memberCount}</p></div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Invitations</p><p className="mt-2 text-xl font-semibold">{organization.invitationCount}</p></div>
+        <div>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Your role</p><p className="mt-2 text-xl font-semibold">{organization.role}</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Members</p><p className="mt-2 text-xl font-semibold">{organization.memberCount}</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6"><p className="text-sm text-slate-500">Invitations</p><p className="mt-2 text-xl font-semibold">{organization.invitationCount}</p></div>
+          </div>
+          <ProjectList
+            organizationId={organization.id}
+            organizationRole={organization.role}
+          />
         </div>
       ) : null}
     </DashboardShell>

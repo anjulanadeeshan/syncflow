@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { AccessDenied } from '@/components/authorization/access-denied';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
@@ -124,14 +125,24 @@ export function ProjectTasks({
           : 'Loading project details…'
       }
       actions={
-        project && !project.archivedAt ? (
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500"
-          >
-            Create task
-          </button>
+        project ? (
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/organizations/${organizationId}/projects/${projectId}/settings`}
+              className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold hover:bg-slate-800"
+            >
+              Project settings
+            </Link>
+            {!project.archivedAt ? (
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500"
+              >
+                Create task
+              </button>
+            ) : null}
+          </div>
         ) : null
       }
     >

@@ -36,3 +36,15 @@ export type OrganizationInvitation = {
   createdAt: string;
   invitedBy: { id: string; name: string; email: string };
 };
+
+export type InvitationDeliveryMethod = 'LINK' | 'EMAIL';
+export type InvitationDeliveryStatus = 'NOT_REQUESTED' | 'SENT' | 'FAILED';
+
+export type InvitationCreationResponse = {
+  invitation: OrganizationInvitation;
+  invitationUrl: string;
+  delivery: {
+    method: InvitationDeliveryMethod;
+    status: InvitationDeliveryStatus;
+  };
+};

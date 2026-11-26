@@ -7,10 +7,27 @@ import { ApiError } from '@/lib/auth/api';
 import { createOrganization } from '@/lib/organizations/api';
 import { useOrganizations } from '@/lib/organizations/organization-context';
 
+const SLUG_FORMAT_HELP =
+  'Use 3–50 lowercase letters or numbers, with single hyphens between words. Example: chero-labs-dev.';
+
+function getSlugValidationMessage(input: HTMLInputElement): string {
+  if (input.validity.tooShort) {
+    return 'The slug must contain at least 3 characters.';
+  }
+  if (input.validity.tooLong) {
+    return 'The slug cannot contain more than 50 characters.';
+  }
+  if (input.validity.patternMismatch) {
+    return 'Use only lowercase letters (a–z), numbers (0–9), and single hyphens between words. Do not use spaces, underscores, or consecutive hyphens.';
+  }
+  return '';
+}
+
 export default function OrganizationsPage() {
   const { organizations, isLoading, error: loadError, reloadOrganizations, selectOrganization } = useOrganizations();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [slugError, setSlugError] = useState('');
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,6 +44,7 @@ export default function OrganizationsPage() {
       await reloadOrganizations();
       selectOrganization(organization.id);
       formElement.reset();
+      setSlugError('');
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Unable to create the organization.');
     } finally {
@@ -62,7 +80,42 @@ export default function OrganizationsPage() {
           <form className="mt-5 space-y-4" onSubmit={handleCreate}>
             {error ? <div role="alert" className="rounded-lg bg-red-950/50 p-3 text-sm text-red-300">{error}</div> : null}
             <label className="block text-sm font-medium">Name<input name="name" required minLength={2} maxLength={100} disabled={submitting} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500" /></label>
-            <label className="block text-sm font-medium">Slug <span className="font-normal text-slate-500">(optional)</span><input name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" minLength={3} maxLength={50} disabled={submitting} placeholder="design-team" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500" /></label>
+            <label className="block text-sm font-medium">
+              Slug <span className="font-normal text-slate-500">(optional)</span>
+              <input
+                name="slug"
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                minLength={3}
+                maxLength={50}
+                disabled={submitting}
+                placeholder="chero-labs-dev"
+                title={SLUG_FORMAT_HELP}
+                aria-invalid={slugError ? true : undefined}
+                aria-describedby="organization-slug-help"
+                onInvalid={(event) => {
+                  event.preventDefault();
+                  setSlugError(getSlugValidationMessage(event.currentTarget));
+                }}
+                onBlur={(event) => {
+                  if (event.currentTarget.value && !event.currentTarget.validity.valid) {
+                    setSlugError(getSlugValidationMessage(event.currentTarget));
+                  }
+                }}
+                onInput={(event) => {
+                  if (slugError) {
+                    setSlugError(getSlugValidationMessage(event.currentTarget));
+                  }
+                }}
+                className={`mt-2 w-full rounded-lg border bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500 ${slugError ? 'border-red-500' : 'border-slate-700'}`}
+              />
+              <span
+                id="organization-slug-help"
+                role={slugError ? 'alert' : undefined}
+                className={`mt-2 block text-xs ${slugError ? 'text-red-300' : 'font-normal text-slate-500'}`}
+              >
+                {slugError || SLUG_FORMAT_HELP}
+              </span>
+            </label>
             <button type="submit" disabled={submitting} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-60">{submitting ? 'Creating…' : 'Create organization'}</button>
           </form>
         </section>

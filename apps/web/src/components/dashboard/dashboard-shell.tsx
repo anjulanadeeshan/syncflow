@@ -74,7 +74,10 @@ export function DashboardShell({
           <nav className="flex items-center gap-1 text-sm">
             <Link href="/organizations" className="rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white">Organizations</Link>
             {selectedOrganization ? (
-              <Link href={`/organizations/${selectedOrganization.id}/settings`} className="rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white">Settings</Link>
+              <>
+                <Link href={`/organizations/${selectedOrganization.id}`} className="rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white">Projects</Link>
+                <Link href={`/organizations/${selectedOrganization.id}/settings`} className="rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white">Settings</Link>
+              </>
             ) : null}
           </nav>
           <div className="ml-auto flex items-center gap-3">

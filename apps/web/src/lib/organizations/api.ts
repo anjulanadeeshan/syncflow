@@ -1,5 +1,7 @@
 import { apiRequest } from '@/lib/auth/api';
 import type {
+  InvitationCreationResponse,
+  InvitationDeliveryMethod,
   OrganizationDetails,
   OrganizationInvitation,
   OrganizationMember,
@@ -76,9 +78,13 @@ export function listInvitations(organizationId: string) {
 
 export function inviteMember(
   organizationId: string,
-  input: { email: string; role: OrganizationRole },
+  input: {
+    email: string;
+    role: OrganizationRole;
+    delivery: InvitationDeliveryMethod;
+  },
 ) {
-  return apiRequest<{ invitation: OrganizationInvitation }>(
+  return apiRequest<InvitationCreationResponse>(
     `/organizations/${organizationId}/invitations`,
     { method: 'POST', body: JSON.stringify(input) },
     true,

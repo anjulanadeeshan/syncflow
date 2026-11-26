@@ -84,6 +84,85 @@ describe('Organizations and invitations (e2e)', () => {
     expect(membership?.role).toBe('OWNER');
   });
 
+  it('creates a copyable invitation link without contacting the mail provider', async () => {
+    const owner = await register('owner@example.com', 'Owner');
+    const invited = await register('invited@example.com', 'Invited');
+    const organization = await owner.agent
+      .post('/api/organizations')
+      .set('X-CSRF-Token', owner.csrfToken)
+      .send({ name: 'Link Invitations', slug: 'link-invitations' })
+      .expect(201);
+
+    const response = await owner.agent
+      .post(`/api/organizations/${organization.body.id}/invitations`)
+      .set('X-CSRF-Token', owner.csrfToken)
+      .send({ email: invited.user.email, role: 'MEMBER', delivery: 'LINK' })
+      .expect(201);
+
+    expect(response.body.delivery).toEqual({
+      method: 'LINK',
+      status: 'NOT_REQUESTED',
+    });
+    expect(response.body.invitationUrl).toMatch(
+      /^http:\/\/localhost:3000\/invitations\/accept#token=/,
+    );
+    expect(mailer.getTestDeliveries()).toHaveLength(0);
+
+    const token = decodeURIComponent(
+      new URL(response.body.invitationUrl as string).hash.replace(
+        /^#token=/,
+        '',
+      ),
+    );
+    await invited.agent
+      .post(`/api/invitations/${token}/accept`)
+      .set('X-CSRF-Token', invited.csrfToken)
+      .expect(201);
+  });
+
+  it('keeps a copyable invitation active when email delivery fails', async () => {
+    const owner = await register('owner@example.com', 'Owner');
+    const invited = await register('invited@example.com', 'Invited');
+    const organization = await owner.agent
+      .post('/api/organizations')
+      .set('X-CSRF-Token', owner.csrfToken)
+      .send({ name: 'Delivery Fallback', slug: 'delivery-fallback' })
+      .expect(201);
+    const delivery = vi
+      .spyOn(mailer, 'sendInvitation')
+      .mockRejectedValueOnce(new Error('Provider unavailable'));
+
+    try {
+      const response = await owner.agent
+        .post(`/api/organizations/${organization.body.id}/invitations`)
+        .set('X-CSRF-Token', owner.csrfToken)
+        .send({ email: invited.user.email, role: 'MEMBER', delivery: 'EMAIL' })
+        .expect(201);
+
+      expect(response.body.delivery).toEqual({
+        method: 'EMAIL',
+        status: 'FAILED',
+      });
+      const persisted = await prisma.invitation.findUniqueOrThrow({
+        where: { id: response.body.invitation.id as string },
+      });
+      expect(persisted.activeKey).not.toBeNull();
+
+      const token = decodeURIComponent(
+        new URL(response.body.invitationUrl as string).hash.replace(
+          /^#token=/,
+          '',
+        ),
+      );
+      await invited.agent
+        .post(`/api/invitations/${token}/accept`)
+        .set('X-CSRF-Token', invited.csrfToken)
+        .expect(201);
+    } finally {
+      delivery.mockRestore();
+    }
+  });
+
   it('joins a second organization by accepting a matching invitation', async () => {
     const owner = await register('owner@example.com', 'Owner');
     const member = await register('member@example.com', 'Member');

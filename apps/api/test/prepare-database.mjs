@@ -37,7 +37,9 @@ const migration = spawnSync(
   [prismaCli, 'migrate', 'deploy', '--config', 'prisma7.config.ts'],
   {
     cwd: process.cwd(),
-    env: { ...process.env, DATABASE_URL: testUrl },
+    // Override both URLs so a developer's optional remote migration URL can
+    // never redirect integration-test migrations away from syncflow_test.
+    env: { ...process.env, DATABASE_URL: testUrl, DIRECT_URL: testUrl },
     stdio: 'inherit',
   },
 );

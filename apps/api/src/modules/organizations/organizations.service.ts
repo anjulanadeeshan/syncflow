@@ -5,8 +5,8 @@ import {
   ForbiddenException,
   GoneException,
   Injectable,
+  Logger,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
@@ -44,6 +44,7 @@ type ResolvedInvitation = {
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
   private readonly invitationTtlMilliseconds: number;
 
   constructor(
@@ -324,6 +325,8 @@ export class OrganizationsService {
     const activeKey = this.getActiveInvitationKey(organizationId, input.email);
     const invitationId = randomUUID();
     const token = this.invitationTokens.create(invitationId);
+    const invitationUrl = this.invitationMailer.createInvitationUrl(token);
+    const deliveryMethod = input.delivery ?? 'EMAIL';
     let result;
     try {
       result = await this.prisma.$transaction(
@@ -413,26 +416,30 @@ export class OrganizationsService {
       throw error;
     }
 
-    try {
-      await this.invitationMailer.sendInvitation({
-        email: input.email,
-        organizationName: result.organization.name,
-        inviterName: actor.name,
-        role: input.role,
-        token,
-      });
-    } catch {
-      await this.prisma.invitation.updateMany({
-        where: { id: result.invitation.id, activeKey },
-        data: { activeKey: null, cancelledAt: new Date() },
-      });
-      throw new ServiceUnavailableException({
-        code: 'INVITATION_DELIVERY_FAILED',
-        message: 'The invitation email could not be delivered.',
-      });
+    let deliveryStatus: 'NOT_REQUESTED' | 'SENT' | 'FAILED' = 'NOT_REQUESTED';
+    if (deliveryMethod === 'EMAIL') {
+      try {
+        await this.invitationMailer.sendInvitation({
+          email: input.email,
+          organizationName: result.organization.name,
+          inviterName: actor.name,
+          role: input.role,
+          invitationUrl,
+        });
+        deliveryStatus = 'SENT';
+      } catch {
+        deliveryStatus = 'FAILED';
+        this.logger.warn(
+          `Invitation ${result.invitation.id} remains active after email delivery failed.`,
+        );
+      }
     }
 
-    return { invitation: this.toInvitationResponse(result.invitation) };
+    return {
+      invitation: this.toInvitationResponse(result.invitation),
+      invitationUrl,
+      delivery: { method: deliveryMethod, status: deliveryStatus },
+    };
   }
 
   async listInvitations(

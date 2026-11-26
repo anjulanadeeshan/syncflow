@@ -21,6 +21,8 @@
     "prisma:generate": "npm run prisma:generate --workspace=@syncflow/api",
     "prisma:validate": "npm run prisma:validate --workspace=@syncflow/api",
     "db:migrate": "npm run prisma:migrate --workspace=@syncflow/api",
+    "db:migrate:deploy": "npm run prisma:migrate:deploy --workspace=@syncflow/api",
+    "db:status": "npm run prisma:migrate:status --workspace=@syncflow/api",
     "db:up": "docker compose up -d postgres",
     "mail:up": "docker compose up -d mailpit",
     "dev:services": "docker compose up -d postgres mailpit",

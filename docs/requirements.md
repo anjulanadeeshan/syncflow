@@ -78,7 +78,7 @@ Organization roles and project membership are intentionally separate. Organizati
 | --- | --- | --- |
 | ORG-01 | An authenticated user can create an organization and becomes its owner. | The organization and owner membership are created atomically. |
 | ORG-02 | A member of multiple organizations can list and switch between authorized workspaces. | The selected workspace does not grant access beyond existing memberships. |
-| ORG-03 | An owner or admin can invite a user by email with an organization role. | Invitation tokens are single-use, hashed at rest, and expire. |
+| ORG-03 | An owner or admin can invite a user by email with an organization role. | Invitation tokens are single-use, hashed at rest, and expire. The inviter can copy the link or request transactional email delivery; an email-provider failure leaves the link available as a fallback. |
 | ORG-04 | A signed-in user can accept a valid invitation matching their normalized email. | Acceptance creates one membership and records invitation acceptance atomically. |
 | ORG-05 | Authorized organization managers can list members, update permitted roles, and remove members. | The last owner cannot be removed or demoted; ownership transfer is transactional. |
 | ORG-06 | Tenant data is isolated. | A user from organization A cannot enumerate, read, mutate, or infer protected resources in organization B. |

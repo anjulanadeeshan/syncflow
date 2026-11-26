@@ -30,6 +30,9 @@ npm run dev:services
 npm run db:migrate
 ```
 
+To run the local web and API applications against a hosted Supabase PostgreSQL
+project instead, follow [the Supabase local testing guide](docs/supabase-local.md).
+
 Start the frontend and API together:
 
 ```powershell
@@ -102,11 +105,17 @@ syncflow/
 | Root `.env` | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Docker PostgreSQL settings |
 | `apps/api/.env` | `PORT`, `CORS_ORIGIN` | API port and credentialed browser origins |
 | `apps/api/.env` | `DATABASE_URL`, `DATABASE_URL_TEST` | Development and isolated integration-test databases |
+| `apps/api/.env` | `DATABASE_USE_LIBPQ_SSL_COMPAT` | Optional local TLS compatibility for the `pg` Prisma adapter |
+| `apps/api/.env` | `DIRECT_URL` | Optional direct or session-mode migration connection; defaults to `DATABASE_URL` |
+| `apps/api/.env` | `DATABASE_TRANSACTION_MAX_WAIT_MS`, `DATABASE_TRANSACTION_TIMEOUT_MS` | Prisma transaction limits, including hosted pooler cold starts |
 | `apps/api/.env` | `AUTH_ACCESS_SECRET`, `AUTH_REFRESH_SECRET` | Separate access signing and refresh HMAC secrets |
 | `apps/api/.env` | `ACCESS_TOKEN_TTL_MINUTES`, `SESSION_TTL_HOURS` | Session lifetime controls |
 | `apps/api/.env` | `INVITATION_TOKEN_SECRET`, `INVITATION_TTL_HOURS` | Invitation token hashing and expiry |
-| `apps/api/.env` | `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `WEB_URL` | Invitation delivery and acceptance link |
+| `apps/api/.env` | `MAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `WEB_URL` | Invitation delivery provider and acceptance link |
+| `apps/api/.env` | `BREVO_API_KEY`, `MAIL_FROM_EMAIL`, `MAIL_FROM_NAME` | Server-only Brevo transactional-email credentials and verified sender |
 | `apps/api/.env` | `COOKIE_DOMAIN` | Optional production cookie domain; blank means host-only |
 | `apps/web/.env.local` | `NEXT_PUBLIC_API_URL` | Browser-visible API base URL |
 
 Real environment files are ignored by Git. Commit only `.env.example` templates. See `docs/authentication.md` for session security and `docs/organization-management.md` for tenant and invitation policy.
+
+For Brevo transactional email configuration, see [docs/brevo-email.md](docs/brevo-email.md).

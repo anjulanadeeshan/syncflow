@@ -30,9 +30,10 @@ export default function DashboardPage() {
             {selectedOrganization ? <Link href={`/organizations/${selectedOrganization.id}`} className="mt-5 inline-flex text-sm font-semibold text-blue-400 hover:text-blue-300">Open organization →</Link> : null}
           </section>
           <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Next module</p>
-            <h2 className="mt-3 text-xl font-semibold">Projects are not enabled yet</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Organization membership is ready. Project management remains intentionally deferred.</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Project workspace</p>
+            <h2 className="mt-3 text-xl font-semibold">Plan and track project work</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Open your workspace to create projects, manage project members, and work with tasks.</p>
+            {selectedOrganization ? <Link href={`/organizations/${selectedOrganization.id}`} className="mt-5 inline-flex text-sm font-semibold text-blue-400 hover:text-blue-300">View projects</Link> : null}
           </section>
         </div>
       )}

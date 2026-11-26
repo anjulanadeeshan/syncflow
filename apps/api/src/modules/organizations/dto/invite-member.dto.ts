@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, MaxLength } from 'class-validator';
 import {
   ORGANIZATION_ROLES,
   type OrganizationRoleValue,
@@ -15,4 +15,8 @@ export class InviteMemberDto {
 
   @IsIn(ORGANIZATION_ROLES)
   role!: OrganizationRoleValue;
+
+  @IsOptional()
+  @IsIn(['LINK', 'EMAIL'])
+  delivery?: 'LINK' | 'EMAIL';
 }

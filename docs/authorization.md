@@ -44,7 +44,7 @@ Additional invariants apply after the permission check:
 
 ## Project access policy
 
-Project authorization is deliberately separate from organization authorization. The reusable project policy defines `PROJECT_MANAGER` and `MEMBER` roles but does not introduce project persistence in this module.
+Project authorization is deliberately separate from organization authorization. Projects use explicit `PROJECT_MANAGER` and `MEMBER` memberships; organization ownership or administration alone does not grant access to project content.
 
 Project access requires both:
 
@@ -53,7 +53,9 @@ Project access requires both:
 
 An organization owner or administrator does not automatically receive access to every project. `PROJECT_MANAGER` can manage project settings, membership, workflow, tasks, and comments. A project `MEMBER` can read the project, work with ordinary tasks, and comment. Project modules must resolve both memberships from the database before using the project policy.
 
-The task module uses `ProjectAccessService` and `ProjectPermissionGuard` to perform this resolution for every project-scoped task route. Sensitive task mutations repeat the project membership and permission lookup inside their database transaction.
+The project and task modules use `ProjectAccessService` and `ProjectPermissionGuard` to perform this resolution for every project-scoped route. Sensitive project, membership, and task mutations repeat the project membership and permission lookup inside their database transaction.
+
+Project creation is restricted to organization owners and administrators. The creator becomes the first project manager, and the project, manager membership, and default workflow columns are created atomically. Project managers may update settings, archive the project, and manage membership. The final project manager cannot be removed or demoted, and archived projects are read-only.
 
 ## Tenant isolation
 
@@ -74,7 +76,7 @@ The task module uses `ProjectAccessService` and `ProjectPermissionGuard` to perf
 
 ## Frontend behavior
 
-The web application mirrors the organization permission matrix to hide or disable unavailable controls and provides a reusable access-denied view. API errors remain authoritative: the client still handles `403` responses because permissions may change after the page is rendered.
+The web application mirrors organization and project permissions to hide or disable unavailable controls and provides a reusable access-denied view. API errors remain authoritative: the client still handles `403` responses because permissions may change after the page is rendered.
 
 When a membership is revoked, the organization selector is refreshed after local mutations. Regardless of client state, the next API request re-resolves membership and denies access immediately.
 

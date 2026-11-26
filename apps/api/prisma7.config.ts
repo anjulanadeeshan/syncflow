@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Runtime traffic can use a pooler while migrations use a direct or
+    // session-mode connection. An empty DIRECT_URL intentionally falls back.
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });
